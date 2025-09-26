@@ -22,6 +22,8 @@ interface RestaurantContextType extends RestaurantState {
   addMenuItem: (item: Omit<MenuItem, 'id' | 'created_at'>) => Promise<void>;
   updateMenuItem: (id: string, updates: Partial<MenuItem>) => Promise<void>;
   deleteMenuItem: (id: string) => Promise<void>;
+  submitRating: (menuItemId: string, rating: number, comment?: string) => Promise<void>;
+  cleanupOldOrders: () => Promise<void>;
 }
 
 type RestaurantAction =
@@ -33,7 +35,8 @@ type RestaurantAction =
   | { type: 'SET_LOADING'; payload: boolean }
   | { type: 'ADD_ORDER'; payload: Order }
   | { type: 'UPDATE_ORDER'; payload: { orderId: string; status: OrderStatus } }
-  | { type: 'SET_CURRENT_TABLE_ORDER'; payload: Order | null };
+  | { type: 'SET_CURRENT_TABLE_ORDER'; payload: Order | null }
+  | { type: 'UPDATE_MENU_ITEM_RATING'; payload: { itemId: string; rating: number; totalRatings: number } };
 
 const initialState: RestaurantState = {
   menuItems: [],
@@ -79,6 +82,20 @@ function restaurantReducer(state: RestaurantState, action: RestaurantAction): Re
     case 'SET_CURRENT_TABLE_ORDER':
       return { ...state, currentTableOrder: action.payload };
     
+    case 'UPDATE_MENU_ITEM_RATING':
+      return {
+        ...state,
+        menuItems: state.menuItems.map(item =>
+          item.id === action.payload.itemId
+            ? { 
+                ...item, 
+                average_rating: action.payload.rating,
+                total_ratings: action.payload.totalRatings
+              }
+            : item
+        )
+      };
+    
     default:
       return state;
   }
@@ -96,7 +113,9 @@ export const RestaurantContext = createContext<RestaurantContextType>({
   loadTableOrder: async () => {},
   addMenuItem: async () => {},
   updateMenuItem: async () => {},
-  deleteMenuItem: async () => {}
+  deleteMenuItem: async () => {},
+  submitRating: async () => {},
+  cleanupOldOrders: async () => {}
 });
 
 export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
@@ -105,14 +124,40 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
   // Load menu items from Supabase
   const loadMenuItems = async () => {
     try {
-      const { data, error } = await supabase
+      // Load menu items with ratings
+      const { data: menuData, error: menuError } = await supabase
         .from('menu_items')
-        .select('*')
-        .eq('available', true);
+        .select('*');
       
-      if (error) throw error;
+      if (menuError) throw menuError;
       
-      dispatch({ type: 'SET_MENU_ITEMS', payload: data || [] });
+      // Load ratings for each menu item
+      const menuItemsWithRatings = await Promise.all(
+        (menuData || []).map(async (item) => {
+          const { data: ratingsData, error: ratingsError } = await supabase
+            .from('ratings')
+            .select('rating')
+            .eq('menu_item_id', item.id);
+          
+          if (ratingsError) {
+            console.error('Error loading ratings:', ratingsError);
+            return { ...item, average_rating: 0, total_ratings: 0 };
+          }
+          
+          const ratings = ratingsData || [];
+          const averageRating = ratings.length > 0 
+            ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+            : 0;
+          
+          return {
+            ...item,
+            average_rating: averageRating,
+            total_ratings: ratings.length
+          };
+        })
+      );
+      
+      dispatch({ type: 'SET_MENU_ITEMS', payload: menuItemsWithRatings });
     } catch (error) {
       console.error('Error loading menu items:', error);
     }
@@ -207,10 +252,76 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     }
   };
 
+  // Submit rating
+  const submitRating = async (menuItemId: string, rating: number, comment?: string) => {
+    try {
+      const { error } = await supabase
+        .from('ratings')
+        .insert({
+          menu_item_id: menuItemId,
+          rating: rating,
+          comment: comment
+        });
+
+      if (error) throw error;
+
+      // Recalculate average rating
+      const { data: ratingsData, error: ratingsError } = await supabase
+        .from('ratings')
+        .select('rating')
+        .eq('menu_item_id', menuItemId);
+
+      if (ratingsError) throw ratingsError;
+
+      const ratings = ratingsData || [];
+      const averageRating = ratings.length > 0 
+        ? ratings.reduce((sum, r) => sum + r.rating, 0) / ratings.length 
+        : 0;
+
+      dispatch({ 
+        type: 'UPDATE_MENU_ITEM_RATING', 
+        payload: { 
+          itemId: menuItemId, 
+          rating: averageRating, 
+          totalRatings: ratings.length 
+        } 
+      });
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      throw error;
+    }
+  };
+
+  // Cleanup old orders (older than 2 days)
+  const cleanupOldOrders = async () => {
+    try {
+      const twoDaysAgo = new Date();
+      twoDaysAgo.setDate(twoDaysAgo.getDate() - 2);
+
+      const { error } = await supabase
+        .from('orders')
+        .delete()
+        .lt('created_at', twoDaysAgo.toISOString())
+        .eq('status', 'completed');
+
+      if (error) throw error;
+      
+      console.log('Old orders cleaned up successfully');
+    } catch (error) {
+      console.error('Error cleaning up old orders:', error);
+    }
+  };
+
   // Subscribe to real-time order updates
   useEffect(() => {
     loadMenuItems();
     loadOrders();
+    
+    // Cleanup old orders on app start
+    cleanupOldOrders();
+    
+    // Setup interval to cleanup old orders daily
+    const cleanupInterval = setInterval(cleanupOldOrders, 24 * 60 * 60 * 1000); // 24 hours
 
     // Subscribe to orders table changes
     const ordersSubscription = supabase
@@ -237,6 +348,7 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
     return () => {
       ordersSubscription.unsubscribe();
       orderItemsSubscription.unsubscribe();
+      clearInterval(cleanupInterval);
     };
   }, []);
 
@@ -416,7 +528,9 @@ export const RestaurantProvider: React.FC<{ children: ReactNode }> = ({ children
       loadTableOrder,
       addMenuItem,
       updateMenuItem,
-      deleteMenuItem
+      deleteMenuItem,
+      submitRating,
+      cleanupOldOrders
     }}>
       {children}
     </RestaurantContext.Provider>

@@ -1,6 +1,7 @@
 import React, { useState, useContext, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { RestaurantContext } from '../context/RestaurantContext';
+import RatingModal from './RatingModal';
 import { ShoppingCart, Plus, Minus, Star, MapPin, X, CheckCircle, Clock, CreditCard, Leaf, Drumstick } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from './ui/Card';
@@ -18,7 +19,8 @@ const CustomerMenu: React.FC = () => {
     submitOrder, 
     loading,
     currentTableOrder,
-    loadTableOrder
+    loadTableOrder,
+    submitRating
   } = useContext(RestaurantContext);
   
   const [searchParams] = useSearchParams();
@@ -27,6 +29,10 @@ const CustomerMenu: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
+  const [ratingModal, setRatingModal] = useState<{ isOpen: boolean; item: any | null }>({
+    isOpen: false,
+    item: null
+  });
   
   const tableNumber = searchParams.get('table');
 
@@ -105,9 +111,25 @@ const CustomerMenu: React.FC = () => {
     }
   };
 
+  const handleRating = (item: any) => {
+    setRatingModal({ isOpen: true, item });
+  };
+
+  const handleSubmitRating = async (rating: number, comment?: string) => {
+    if (!ratingModal.item) return;
+    
+    try {
+      await submitRating(ratingModal.item.id, rating, comment);
+      setRatingModal({ isOpen: false, item: null });
+    } catch (error) {
+      console.error('Error submitting rating:', error);
+      alert('Failed to submit rating. Please try again.');
+    }
+  };
+
   if (loading) {
     return (
-      <div className="flex justify-center items-center min-h-64">
+      <div className="flex justify-center items-center min-h-screen px-4">
         <LoadingSpinner size="lg" />
       </div>
     );
@@ -159,14 +181,14 @@ const CustomerMenu: React.FC = () => {
   }
 
   return (
-    <div className="max-w-6xl mx-auto">
+    <div className="max-w-6xl mx-auto px-2 sm:px-4 lg:px-6">
       {/* Header */}
       <motion.div 
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="text-center mb-8"
+        className="text-center mb-4 sm:mb-8"
       >
-        <div className="flex items-center justify-center gap-2 mb-4">
+        <div className="flex items-center justify-center gap-2 mb-2 sm:mb-4">
           {tableNumber && (
             <Badge variant="info" size="md">
               <MapPin className="w-4 h-4 mr-1" />
@@ -174,8 +196,8 @@ const CustomerMenu: React.FC = () => {
             </Badge>
           )}
         </div>
-        <h1 className="text-4xl font-bold text-gray-900 mb-2">Our Menu</h1>
-        <p className="text-gray-600 text-lg">Choose from our delicious selection</p>
+        <h1 className="text-2xl sm:text-4xl font-bold text-gray-900 mb-2">Our Menu</h1>
+        <p className="text-gray-600 text-sm sm:text-lg">Choose from our delicious selection</p>
       </motion.div>
 
       {/* Cart Section - Always at top when items exist */}
@@ -185,12 +207,12 @@ const CustomerMenu: React.FC = () => {
             initial={{ opacity: 0, height: 0 }}
             animate={{ opacity: 1, height: 'auto' }}
             exit={{ opacity: 0, height: 0 }}
-            className="sticky top-4 z-20 mb-8"
+            className="sticky top-2 z-20 mb-4 sm:mb-8"
           >
             <Card className="border-l-4 border-l-blue-600 shadow-lg">
-              <CardContent className="p-6">
+              <CardContent className="p-3 sm:p-6">
                 <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-bold text-gray-900 flex items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold text-gray-900 flex items-center gap-2">
                     <ShoppingCart className="w-5 h-5 text-blue-600" />
                     Your Cart ({cart.length} items)
                   </h2>
@@ -199,17 +221,17 @@ const CustomerMenu: React.FC = () => {
                   </Button>
                 </div>
 
-                <div className="space-y-3 mb-4 max-h-40 overflow-y-auto">
+                <div className="space-y-2 sm:space-y-3 mb-4 max-h-32 sm:max-h-40 overflow-y-auto">
                   {cart.map((item) => (
                     <motion.div 
                       key={item.cartId}
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: 20 }}
-                      className="flex justify-between items-center p-3 bg-gray-50 rounded-lg"
+                      className="flex justify-between items-center p-2 sm:p-3 bg-gray-50 rounded-lg"
                     >
                       <div className="flex-1">
-                        <h4 className="font-medium text-gray-900">{item.name}</h4>
+                        <h4 className="font-medium text-gray-900 text-sm sm:text-base">{item.name}</h4>
                         <p className="text-sm text-gray-600">₹{item.price.toFixed(2)}</p>
                       </div>
                       <Button
@@ -225,17 +247,17 @@ const CustomerMenu: React.FC = () => {
                 </div>
                 
                 <div className="border-t border-gray-200 pt-4">
-                  <div className="flex justify-between items-center font-semibold text-xl mb-4">
+                  <div className="flex justify-between items-center font-semibold text-lg sm:text-xl mb-4">
                     <span>Total:</span>
                     <span className="text-blue-600">₹{getCartTotal().toFixed(2)}</span>
                   </div>
 
-                  <div className="flex gap-3">
+                  <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                     <Button
                       variant="secondary"
                       onClick={clearCart}
                       disabled={isSubmitting}
-                      className="flex-1"
+                      className="flex-1 text-sm sm:text-base"
                     >
                       Clear Cart
                     </Button>
@@ -244,7 +266,7 @@ const CustomerMenu: React.FC = () => {
                       onClick={handleSubmitOrder}
                       disabled={!tableNumber || isSubmitting}
                       loading={isSubmitting}
-                      className="flex-1"
+                      className="flex-1 text-sm sm:text-base"
                     >
                       Submit Order
                     </Button>
@@ -261,24 +283,24 @@ const CustomerMenu: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-4 sm:mb-8"
         >
           <Card className="border-l-4 border-l-green-600">
-            <CardContent className="p-6">
-              <h3 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
+            <CardContent className="p-3 sm:p-6">
+              <h3 className="text-base sm:text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 Current Order Status
               </h3>
               
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-2">
                 <div>
-                  <p className="font-medium text-gray-900">Order #{currentTableOrder.id.slice(-8)}</p>
+                  <p className="font-medium text-gray-900 text-sm sm:text-base">Order #{currentTableOrder.id.slice(-8)}</p>
                   <p className="text-sm text-gray-600">Total: ₹{currentTableOrder.total.toFixed(2)}</p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs sm:text-sm text-gray-500">
                     Ordered at {new Date(currentTableOrder.created_at).toLocaleTimeString()}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="text-right sm:text-left">
                   {(() => {
                     const statusDisplay = getOrderStatusDisplay(currentTableOrder);
                     return (
@@ -295,11 +317,11 @@ const CustomerMenu: React.FC = () => {
               
               {/* Order Items */}
               <div className="border-t border-gray-200 pt-4">
-                <h4 className="font-medium text-gray-900 mb-2">Items:</h4>
+                <h4 className="font-medium text-gray-900 mb-2 text-sm sm:text-base">Items:</h4>
                 <div className="space-y-2">
                   {currentTableOrder.items.map((item) => (
-                    <div key={item.id} className="flex justify-between items-center text-sm">
-                      <span className="text-gray-700 flex items-center gap-2">
+                    <div key={item.id} className="flex justify-between items-center text-xs sm:text-sm">
+                      <span className="text-gray-700 flex items-center gap-1 sm:gap-2">
                         {item.menu_item.type === 'veg' ? 
                           <Leaf className="w-3 h-3 text-green-600" /> : 
                           <Drumstick className="w-3 h-3 text-red-600" />
@@ -338,12 +360,12 @@ const CustomerMenu: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
+          className="mb-4 sm:mb-8"
         >
           <Card className="border-l-4 border-l-blue-600">
-            <CardContent className="p-6 text-center">
-              <h3 className="text-lg font-semibold text-blue-900 mb-2">Order in Progress</h3>
-              <p className="text-blue-800">
+            <CardContent className="p-3 sm:p-6 text-center">
+              <h3 className="text-base sm:text-lg font-semibold text-blue-900 mb-2">Order in Progress</h3>
+              <p className="text-blue-800 text-sm sm:text-base">
                 You have an active order. Please wait for it to be completed before placing a new order.
               </p>
             </CardContent>
@@ -356,25 +378,25 @@ const CustomerMenu: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="mb-8 space-y-4"
+          className="mb-4 sm:mb-8 space-y-3 sm:space-y-4"
         >
           {/* Search Bar */}
-          <div className="max-w-md mx-auto">
+          <div className="max-w-md mx-auto px-2">
             <input
               type="text"
               placeholder="Search menu items..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
+              className="w-full px-3 sm:px-4 py-2 sm:py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center text-sm sm:text-base"
             />
           </div>
 
           {/* Category Dropdown Filter */}
-          <div className="flex justify-center mb-4">
+          <div className="flex justify-center mb-4 px-2">
             <select
               value={selectedCategory}
               onChange={(e) => setSelectedCategory(e.target.value)}
-              className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="px-3 sm:px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
             >
               {categories.map((category) => (
                 <option key={category} value={category} className="capitalize">
@@ -385,14 +407,14 @@ const CustomerMenu: React.FC = () => {
           </div>
 
           {/* Veg/Non-Veg Filter */}
-          <div className="flex justify-center gap-2">
+          <div className="flex justify-center gap-1 sm:gap-2 px-2">
             {['all', 'veg', 'non-veg'].map((type) => (
               <Button
                 key={type}
                 variant={selectedType === type ? 'primary' : 'secondary'}
                 size="sm"
                 onClick={() => setSelectedType(type)}
-                className="capitalize"
+                className="capitalize text-xs sm:text-sm"
               >
                 {type === 'veg' && <Leaf className="w-4 h-4 mr-1" />}
                 {type === 'non-veg' && <Drumstick className="w-4 h-4 mr-1" />}
@@ -408,7 +430,7 @@ const CustomerMenu: React.FC = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="grid md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8"
+         className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-6 mb-4 sm:mb-8"
         >
           <AnimatePresence>
             {filteredItems.map((item, index) => (
@@ -419,15 +441,15 @@ const CustomerMenu: React.FC = () => {
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: index * 0.1 }}
               >
-                <Card hover className="overflow-hidden">
+               <Card hover className={`overflow-hidden ${!item.available ? 'opacity-50 pointer-events-none' : ''}`}>
                   <div className="relative">
                     <img
                       src={item.image || "https://images.pexels.com/photos/1640777/pexels-photo-1640777.jpeg"}
                       alt={item.name}
-                      className="w-full h-48 object-cover"
+                     className={`w-full h-32 sm:h-48 object-cover ${!item.available ? 'grayscale blur-sm' : ''}`}
                     />
                     
-                    <div className="absolute top-2 left-2 flex gap-2">
+                   <div className="absolute top-1 sm:top-2 left-1 sm:left-2 flex gap-1 sm:gap-2">
                       <Badge variant={item.type === 'veg' ? 'success' : 'error'} size="sm">
                         {item.type === 'veg' ? (
                           <><Leaf className="w-3 h-3 mr-1" /> Veg</>
@@ -438,63 +460,79 @@ const CustomerMenu: React.FC = () => {
                       <Badge variant="info" size="sm" className="capitalize">
                         {item.category}
                       </Badge>
+                     {!item.available && (
+                       <Badge variant="error" size="sm">
+                         Unavailable
+                       </Badge>
+                     )}
                     </div>
 
-                    <div className="absolute top-2 right-2">
-                      <div className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full">
+                   <div className="absolute top-1 sm:top-2 right-1 sm:right-2">
+                     <button
+                       onClick={() => handleRating(item)}
+                       className="flex items-center gap-1 bg-white/90 backdrop-blur-sm px-2 py-1 rounded-full hover:bg-white transition-colors"
+                     >
                         <Star className="w-4 h-4 text-yellow-400 fill-current" />
-                        <span className="text-sm font-medium">4.5</span>
-                      </div>
+                       <span className="text-xs sm:text-sm font-medium">
+                         {item.average_rating ? item.average_rating.toFixed(1) : '0.0'}
+                       </span>
+                     </button>
                     </div>
                   </div>
                   
-                  <CardContent className="p-4">
+                 <CardContent className="p-3 sm:p-4">
                     <div className="flex justify-between items-start mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{item.name}</h3>
-                      <span className="text-xl font-bold text-blue-600">₹{item.price.toFixed(2)}</span>
+                     <h3 className="text-sm sm:text-lg font-semibold text-gray-900 line-clamp-2">{item.name}</h3>
+                     <span className="text-base sm:text-xl font-bold text-blue-600 ml-2">₹{item.price.toFixed(2)}</span>
                     </div>
                     
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{item.description}</p>
+                   <p className="text-gray-600 text-xs sm:text-sm mb-3 line-clamp-2">{item.description}</p>
                     
                     <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm text-gray-500">
+                     <div className="flex items-center gap-1 sm:gap-2 text-xs sm:text-sm text-gray-500">
                         <Clock className="w-4 h-4" />
                         <span>{item.prep_time} min</span>
                       </div>
                       
-                      <div className="flex items-center gap-3">
-                        <div className="flex items-center gap-2">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateQuantity(item.id, -1)}
-                            disabled={!quantities[item.id]}
-                            className="w-8 h-8 p-0 rounded-full"
-                          >
-                            <Minus className="w-4 h-4" />
-                          </Button>
-                          <span className="w-8 text-center font-medium">
-                            {quantities[item.id] || 0}
-                          </span>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => updateQuantity(item.id, 1)}
-                            className="w-8 h-8 p-0 rounded-full"
-                          >
-                            <Plus className="w-4 h-4" />
-                          </Button>
-                        </div>
+                     {item.available && (
+                       <div className="flex items-center gap-2 sm:gap-3">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => updateQuantity(item.id, -1)}
+                              disabled={!quantities[item.id]}
+                              className="w-8 h-8 sm:w-9 sm:h-9 p-0 rounded-full flex items-center justify-center"
+                            >
+                              <Minus className="w-4 h-4" />
+                            </Button>
+                                              
+                            <span className="w-8 text-center font-medium text-base sm:text-sm">
+                              {quantities[item.id] || 0}
+                            </span>
+                                              
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              onClick={() => updateQuantity(item.id, 1)}
+                              className="w-8 h-8 sm:w-9 sm:h-9 p-0 rounded-full flex items-center justify-center"
+                            >
+                              <Plus className="w-4 h-4" />
+                            </Button>
+                          </div>
+
                         
-                        <Button
-                          size="sm"
-                          variant="primary"
-                          onClick={() => handleAddToCart(item)}
-                          disabled={!quantities[item.id]}
-                        >
-                          Add
-                        </Button>
-                      </div>
+                         <Button
+                           size="sm"
+                           variant="primary"
+                           onClick={() => handleAddToCart(item)}
+                           disabled={!quantities[item.id]}
+                           className="text-xs sm:text-sm"
+                         >
+                           Add
+                         </Button>
+                       </div>
+                     )}
                     </div>
                   </CardContent>
                 </Card>
@@ -508,11 +546,19 @@ const CustomerMenu: React.FC = () => {
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          className="text-center py-12"
+          className="text-center py-8 sm:py-12 px-4"
         >
-          <p className="text-gray-500 text-lg">No items found matching your criteria.</p>
+          <p className="text-gray-500 text-sm sm:text-lg">No items found matching your criteria.</p>
         </motion.div>
       )}
+
+      {/* Rating Modal */}
+      <RatingModal
+        isOpen={ratingModal.isOpen}
+        onClose={() => setRatingModal({ isOpen: false, item: null })}
+        itemName={ratingModal.item?.name || ''}
+        onSubmit={handleSubmitRating}
+      />
     </div>
   );
 };

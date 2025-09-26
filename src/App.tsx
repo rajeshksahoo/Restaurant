@@ -5,6 +5,8 @@ import StaffDashboard from './components/StaffDashboard';
 import CustomerMenu from './components/CustomerMenu';
 import QRCodeDisplay from './components/QRCodeDisplay';
 import Navigation from './components/Navigation';
+import Footer from "./components/Footer";
+
 
 function App() {
   return (
@@ -19,6 +21,7 @@ function App() {
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <StaffDashboard />
                 </main>
+                <Footer />
               </>
             } />
             
@@ -29,6 +32,7 @@ function App() {
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <CustomerMenu />
                 </main>
+                <Footer />
               </>
             } />
             
@@ -39,6 +43,7 @@ function App() {
                 <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                   <QRCodeDisplay />
                 </main>
+                <Footer />
               </>
             } />
             

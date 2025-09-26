@@ -110,18 +110,18 @@ const StaffDashboard: React.FC = () => {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex items-center justify-between">
-        <div>
+        <div className="flex-1">
           <h1 className="text-3xl font-bold text-gray-900">Staff Dashboard</h1>
           <p className="text-gray-600 mt-1">Manage orders, menu, and analytics</p>
         </div>
 
         {/* Table Status Section */}
-        <Card>
-        {/* <CardHeader className="pb-2">
+        <Card className="ml-4">
+        <CardHeader className="pb-2">
           <h2 className="text-sm font-semibold text-gray-900">Table Status</h2>
-        </CardHeader> */}
-        <CardContent>
-          <div className="grid grid-cols-5 md:grid-cols-10 gap-1 justify-center">
+        </CardHeader>
+        <CardContent className="pt-2">
+          <div className="grid grid-cols-5 md:grid-cols-10 gap-1">
             {[...Array(20)].map((_, i) => {
               const tableNumber = i + 1;
               const activeOrder = orders.find(
@@ -132,17 +132,28 @@ const StaffDashboard: React.FC = () => {
               return (
                 <div
                   key={tableNumber}
-                  className={`p-2 rounded-md text-center text-xs font-medium w-14 h-12 flex flex-col justify-center ${
+                  className={`p-1 rounded-md text-center text-xs font-medium w-12 h-10 flex flex-col justify-center transition-colors ${
                     isOccupied
-                      ? "bg-red-100 border border-red-300"
-                      : "bg-green-100 border border-green-300"
+                      ? "bg-red-100 border border-red-300 text-red-800"
+                      : "bg-green-100 border border-green-300 text-green-800"
                   }`}
+                  title={isOccupied ? `Table ${tableNumber} - Order #${activeOrder.id.slice(-8)}` : `Table ${tableNumber} - Available`}
                 >
-                  <p className="font-bold">T{tableNumber}</p>
-                  <p>{isOccupied ? "Occup" : "Avail"}</p>
+                  <div className="font-bold text-xs">T{tableNumber}</div>
+                  <div className="text-xs">{isOccupied ? "●" : "○"}</div>
                 </div>
               );
             })}
+          </div>
+          <div className="flex justify-center gap-4 mt-2 text-xs text-gray-600">
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-green-100 border border-green-300 rounded"></div>
+              <span>Available</span>
+            </div>
+            <div className="flex items-center gap-1">
+              <div className="w-3 h-3 bg-red-100 border border-red-300 rounded"></div>
+              <span>Occupied</span>
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -443,7 +454,10 @@ const StaffDashboard: React.FC = () => {
               <CardContent>
                 <div className="space-y-3 max-h-64 overflow-y-auto">
                   {orders
-                    .filter(order => order.status === 'completed')
+                    .filter(order => 
+                      order.status === 'completed' &&
+                      new Date(order.created_at) >= new Date(Date.now() - 2 * 24 * 60 * 60 * 1000) // only last 2 days
+                    )
                     .slice(0, 10)
                     .map((order) => (
                       <motion.div
