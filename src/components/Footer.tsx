@@ -5,7 +5,7 @@ const Footer: React.FC = () => {
     <footer className="mt-10 border-t border-gray-200 py-6 text-center text-sm text-gray-600">
       <p className="mb-1">
         © {new Date().getFullYear()}{" "}
-        <span className="font-semibold text-blue-600">Jagan Behera</span>. All
+        <span className="font-semibold text-blue-600">Rajesh Ku Sahoo</span>. All
         rights reserved.
       </p>
         <p className="text-xs text-gray-500">
